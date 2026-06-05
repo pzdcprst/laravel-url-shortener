@@ -12,6 +12,8 @@ interface ShortUrlRepository
 
     public function findById(string $id): ?ShortUrl;
 
+    public function findByIdForUser(string $id, int $userId): ?ShortUrl;
+
     public function findByShortCode(ShortCode $shortCode): ?ShortUrl;
 
     public function existsByShortCode(string $shortCode): bool;

@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ config('app.name') }}</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
         :root {
             --bg: #0f1419;
@@ -217,13 +218,46 @@
         .toast.error { border-color: var(--error); color: #fca5a5; }
 
         .empty-history { color: var(--muted); font-size: 0.85rem; }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .user-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .user-name {
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .logout-form button {
+            padding: 0.45rem 0.75rem;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
     <div class="wrap">
-        <header>
-            <h1>{{ config('app.name') }}</h1>
-            <p>Сократите ссылку и следите за переходами в реальном времени</p>
+        <header class="header-row">
+            <div>
+                <h1>{{ config('app.name') }}</h1>
+                <p>Сократите ссылку и следите за переходами в реальном времени</p>
+            </div>
+            <div class="user-bar">
+                <span class="user-name">{{ auth()->user()->name }}</span>
+                <form class="logout-form" method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="btn-secondary">Выйти</button>
+                </form>
+            </div>
         </header>
 
         <section class="card">
@@ -285,12 +319,21 @@
     <div class="toast" id="toast" role="status"></div>
 
     <script>
-        const STORAGE_KEY = 'url_shortener_history';
+        const STORAGE_KEY = 'url_shortener_history_{{ auth()->id() }}';
         const API = '/api/v1';
+        const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
 
         let currentId = null;
 
         const $ = (id) => document.getElementById(id);
+
+        function apiHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': CSRF_TOKEN,
+            };
+        }
 
         function showToast(message, isError = false) {
             const toast = $('toast');
@@ -364,7 +407,10 @@
             if (!currentId) return;
 
             try {
-                const res = await fetch(`${API}/short-urls/${currentId}/stats`);
+                const res = await fetch(`${API}/short-urls/${currentId}/stats`, {
+                    headers: apiHeaders(),
+                    credentials: 'same-origin',
+                });
                 if (!res.ok) throw new Error('Не удалось загрузить статистику');
 
                 const data = await res.json();
@@ -386,10 +432,8 @@
             try {
                 const res = await fetch(`${API}/short-urls`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
+                    headers: apiHeaders(),
+                    credentials: 'same-origin',
                     body: JSON.stringify({ url }),
                 });
 

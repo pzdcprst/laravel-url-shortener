@@ -12,9 +12,9 @@ final class GetShortUrlStatsHandler
         private readonly ShortUrlRepository $repository,
     ) {}
 
-    public function handle(string $id): ShortUrlStatsResult
+    public function handle(string $id, int $userId): ShortUrlStatsResult
     {
-        if ($this->repository->findById($id) === null) {
+        if ($this->repository->findByIdForUser($id, $userId) === null) {
             throw new NotFoundHttpException('Short URL not found.');
         }
 

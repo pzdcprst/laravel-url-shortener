@@ -2,8 +2,10 @@
 
 namespace App\Infrastructure\Persistence\Models;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ShortUrlModel extends Model
@@ -20,6 +22,7 @@ class ShortUrlModel extends Model
 
     protected $fillable = [
         'id',
+        'user_id',
         'original_url',
         'short_code',
         'created_at',
@@ -30,6 +33,11 @@ class ShortUrlModel extends Model
         return [
             'created_at' => 'immutable_datetime',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function clicks(): HasMany

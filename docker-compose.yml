@@ -1,5 +1,6 @@
 services:
   app:
+    user: "1000:1000"
     build:
       context: .
       dockerfile: docker/php/Dockerfile
@@ -11,12 +12,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_started
     environment:
       APP_ENV: local
       DB_HOST: postgres
-      REDIS_HOST: redis
 
   nginx:
     image: nginx:1.27-alpine
@@ -47,13 +45,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: url-shortener-redis
-    restart: unless-stopped
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
 
 volumes:
   postgres_data:

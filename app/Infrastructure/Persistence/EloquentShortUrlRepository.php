@@ -16,6 +16,7 @@ final class EloquentShortUrlRepository implements ShortUrlRepository
     {
         ShortUrlModel::query()->create([
             'id' => $shortUrl->id,
+            'user_id' => $shortUrl->userId,
             'original_url' => $shortUrl->originalUrl,
             'short_code' => $shortUrl->shortCode,
             'created_at' => $shortUrl->createdAt,
@@ -25,6 +26,16 @@ final class EloquentShortUrlRepository implements ShortUrlRepository
     public function findById(string $id): ?ShortUrl
     {
         $model = ShortUrlModel::query()->find($id);
+
+        return $model ? $this->toEntity($model) : null;
+    }
+
+    public function findByIdForUser(string $id, int $userId): ?ShortUrl
+    {
+        $model = ShortUrlModel::query()
+            ->where('id', $id)
+            ->where('user_id', $userId)
+            ->first();
 
         return $model ? $this->toEntity($model) : null;
     }
@@ -78,6 +89,7 @@ final class EloquentShortUrlRepository implements ShortUrlRepository
     {
         return new ShortUrl(
             id: $model->id,
+            userId: $model->user_id,
             originalUrl: $model->original_url,
             shortCode: $model->short_code,
             createdAt: $model->created_at,

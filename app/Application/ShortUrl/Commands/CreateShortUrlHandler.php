@@ -20,7 +20,7 @@ final class CreateShortUrlHandler
         private readonly ShortCodeGenerator $codeGenerator,
     ) {}
 
-    public function handle(string $url): CreateShortUrlResult
+    public function handle(string $url, int $userId): CreateShortUrlResult
     {
         $originalUrl = new OriginalUrl($url);
         $length = (int) config('shortener.short_code_length', 7);
@@ -34,6 +34,7 @@ final class CreateShortUrlHandler
 
             $shortUrl = new ShortUrl(
                 id: (string) Str::uuid(),
+                userId: $userId,
                 originalUrl: $originalUrl->value,
                 shortCode: $shortCode,
                 createdAt: new DateTimeImmutable,

@@ -7,6 +7,7 @@ use App\Application\ShortUrl\Queries\GetShortUrlStatsHandler;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateShortUrlRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ShortUrlController extends Controller
 {
@@ -14,7 +15,10 @@ class ShortUrlController extends Controller
         CreateShortUrlRequest $request,
         CreateShortUrlHandler $handler,
     ): JsonResponse {
-        $result = $handler->handle($request->validated('url'));
+        $result = $handler->handle(
+            url: $request->validated('url'),
+            userId: $request->user()->id,
+        );
 
         return response()->json([
             'id' => $result->id,
@@ -25,9 +29,10 @@ class ShortUrlController extends Controller
 
     public function stats(
         string $id,
+        Request $request,
         GetShortUrlStatsHandler $handler,
     ): JsonResponse {
-        $stats = $handler->handle($id);
+        $stats = $handler->handle($id, $request->user()->id);
 
         return response()->json([
             'clicks' => $stats->clicks,

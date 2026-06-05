@@ -1,10 +1,11 @@
-.PHONY: setup up down build migrate test shell pint logs
+.PHONY: setup up down build migrate seed test shell pint logs
 
 COMPOSE = docker compose
 APP = $(COMPOSE) exec app
 
-setup: build up install env migrate
+setup: build up install env migrate seed
 	@echo "Ready: http://localhost:$${APP_PORT:-8080}"
+	@echo "Login: alice@example.com / password"
 
 env:
 	@test -f .env || cp .env.example .env
@@ -24,6 +25,9 @@ install:
 
 migrate:
 	$(APP) php artisan migrate --force
+
+seed:
+	$(APP) php artisan db:seed --force
 
 test:
 	$(APP) php artisan test

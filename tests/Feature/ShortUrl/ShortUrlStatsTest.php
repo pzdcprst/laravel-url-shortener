@@ -4,6 +4,7 @@ namespace Tests\Feature\ShortUrl;
 
 use App\Infrastructure\Persistence\Models\ClickModel;
 use App\Infrastructure\Persistence\Models\ShortUrlModel;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -13,10 +14,21 @@ class ShortUrlStatsTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function it_returns_click_statistics(): void
+    public function it_requires_authentication(): void
     {
+        $response = $this->getJson('/api/v1/short-urls/550e8400-e29b-41d4-a716-446655440000/stats');
+
+        $response->assertUnauthorized();
+    }
+
+    #[Test]
+    public function it_returns_click_statistics_for_owner(): void
+    {
+        $user = User::factory()->create();
+
         $shortUrl = ShortUrlModel::query()->create([
             'id' => '550e8400-e29b-41d4-a716-446655440000',
+            'user_id' => $user->id,
             'original_url' => 'https://example.com',
             'short_code' => 'Ax7B2k1',
             'created_at' => now(),
@@ -49,7 +61,7 @@ class ShortUrlStatsTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $response = $this->getJson('/api/v1/short-urls/'.$shortUrl->id.'/stats');
+        $response = $this->actingAs($user)->getJson('/api/v1/short-urls/'.$shortUrl->id.'/stats');
 
         $response->assertOk()
             ->assertJsonPath('clicks', 3)
@@ -58,9 +70,20 @@ class ShortUrlStatsTest extends TestCase
     }
 
     #[Test]
-    public function it_returns_not_found_for_unknown_short_url(): void
+    public function it_hides_stats_from_other_users(): void
     {
-        $response = $this->getJson('/api/v1/short-urls/550e8400-e29b-41d4-a716-446655440099/stats');
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+
+        $shortUrl = ShortUrlModel::query()->create([
+            'id' => '550e8400-e29b-41d4-a716-446655440000',
+            'user_id' => $owner->id,
+            'original_url' => 'https://example.com',
+            'short_code' => 'Ax7B2k1',
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAs($other)->getJson('/api/v1/short-urls/'.$shortUrl->id.'/stats');
 
         $response->assertNotFound();
     }

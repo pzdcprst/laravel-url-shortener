@@ -1,61 +1,44 @@
 # URL Shortener
 
-Pet-проект: сервис сокращения ссылок на **PHP 8.4**, **Laravel 13**, **PostgreSQL**, **Redis**, **Docker**.
+Pet-проект: сервис сокращения ссылок на **PHP 8.4**, **Laravel 13**, **PostgreSQL**, **Docker**.
 
-Показывает базовую backend-архитектуру: REST API, редирект, учёт кликов, слои DDD, тесты и контейнеризация.
+Многопользовательский режим: каждый пользователь видит и управляет только своими ссылками. Есть веб-панель с авторизацией, REST API (сессия), редирект и статистика кликов.
 
 ## Статус (roadmap)
 
-
-| Версия   | Статус | Возможности                                                 |
-| -------- | ------ | ----------------------------------------------------------- |
-| **v1.0** | готово | Docker, PostgreSQL, миграции, API, редирект 302, статистика |
-| v1.1     | план   | Redis-кеш при редиректе                                     |
-| v1.2     | план   | QR-коды, кастомные алиасы                                   |
-| v1.3     | план   | Очереди для кликов                                          |
-| v1.4     | план   | OpenAPI                                                     |
-| v1.5     | план   | GitHub Actions                                              |
-| v2.0     | план   | Авторизация, мультипользовательский режим                   |
-
+| Версия | Статус | Возможности |
+|--------|--------|-------------|
+| v1.0 | готово | Docker, PostgreSQL, API, редирект, статистика, веб-панель |
+| **v2.0** | готово | Авторизация, мультипользовательский режим |
+| v2.1 | план | Кеш при редиректе |
+| v2.2 | план | QR-коды, кастомные алиасы |
+| v2.3 | план | Очереди для кликов |
+| v2.4 | план | OpenAPI, GitHub Actions |
 
 ## Архитектура
 
 ```mermaid
 flowchart TB
-    Client[Client / Browser]
+    Browser[Browser]
     Nginx[Nginx :8080]
     App[Laravel PHP-FPM]
     PG[(PostgreSQL)]
-    Redis[(Redis)]
 
-    Client --> Nginx
+    Browser -->|login / dashboard| Nginx
+    Browser -->|GET /code| Nginx
     Nginx --> App
     App --> PG
-    App -.-> Redis
 ```
-
-
-
-Redis подключён в Docker — активное использование при редиректе запланировано в v1.1. Очереди и авторизация в v1.0 не используются.
 
 ### Слои приложения (облегчённый DDD)
 
 ```text
 app/
-├── Domain/ShortUrl/
-│   ├── Entities/          # ShortUrl, Click
-│   ├── ValueObjects/      # OriginalUrl, ShortCode
-│   ├── Services/          # ShortCodeGenerator (Base62)
-│   └── Contracts/         # ShortUrlRepository
-├── Application/ShortUrl/
-│   ├── DTO/
-│   ├── Commands/          # CreateShortUrl, RecordClick
-│   └── Queries/           # GetShortUrlStats
-├── Infrastructure/
-│   └── Persistence/       # Eloquent models + repository
-└── Http/
-    ├── Controllers/
-    └── Requests/
+├── Domain/ShortUrl/       # сущности, value objects, репозиторий
+├── Application/ShortUrl/  # commands, queries, DTO
+├── Infrastructure/        # Eloquent, persistence
+├── Http/                  # контроллеры, requests
+└── Models/User.php        # авторизация
 ```
 
 ## Быстрый старт
@@ -66,29 +49,52 @@ app/
 make setup
 ```
 
-Приложение: [http://localhost:8080](http://localhost:8080) — веб-панель для создания ссылок и просмотра статистики.
+Приложение: [http://localhost:8080](http://localhost:8080)
+
+### Тестовые пользователи
+
+После `make setup` в БД создаются два пользователя:
+
+| Email | Пароль |
+|-------|--------|
+| `alice@example.com` | `password` |
+| `bob@example.com` | `password` |
+
+Войдите на `/login` — у каждого пользователя свои ссылки и статистика.
 
 ### Полезные команды
 
 ```bash
 make up          # запустить контейнеры
 make down        # остановить
-make migrate     # применить миграции
-make test        # тесты (в контейнере)
+make migrate     # миграции
+make seed        # тестовые пользователи
+make test        # тесты
 make shell       # shell в контейнере app
-make pint        # форматирование кода
 ```
 
-Локально без Docker (нужны PHP 8.4+, Composer, SQLite для тестов):
+Локально без Docker (PHP 8.4+, Composer, SQLite для тестов):
 
 ```bash
 composer install
 cp .env.example .env
 php artisan key:generate
+php artisan migrate
+php artisan db:seed
 php artisan test
 ```
 
-## API
+## Авторизация и мультипользовательский режим
+
+- **Вход** — `/login`, сессионная авторизация Laravel (`web` guard).
+- **Выход** — кнопка «Выйти» на панели.
+- **Защита** — панель (`/`) и API (`/api/v1/*`) доступны только авторизованным.
+- **Изоляция** — у каждой записи `short_urls` есть `user_id`; статистика и создание привязаны к текущему пользователю.
+- **Редирект** — `GET /{shortCode}` остаётся публичным (без входа).
+
+## API (требуется авторизация)
+
+Сессионные cookie после входа через браузер. Для `POST` нужен заголовок `X-CSRF-TOKEN`.
 
 ### Создать короткую ссылку
 
@@ -111,7 +117,7 @@ Content-Type: application/json
 }
 ```
 
-### Статистика переходов
+### Статистика (только свои ссылки)
 
 ```http
 GET /api/v1/short-urls/{id}/stats
@@ -127,49 +133,50 @@ GET /api/v1/short-urls/{id}/stats
 }
 ```
 
-### Редирект
+Чужая ссылка → `404`.
+
+### Редирект (публичный)
 
 ```http
 GET /{shortCode}
 ```
 
-Ответ `302` → оригинальный URL. Каждый переход сохраняется в таблицу `clicks`.
+Ответ `302` → оригинальный URL. Каждый переход пишется в `clicks`.
 
 ## Схема БД
 
-**short_urls** — `id` (UUID), `original_url`, `short_code`, `created_at`
+**users** — `id`, `name`, `email`, `password`, `remember_token`, timestamps
+
+**short_urls** — `id` (UUID), `user_id`, `original_url`, `short_code`, `created_at`
 
 **clicks** — `id`, `short_url_id`, `ip`, `user_agent`, `referer`, `created_at`
 
-Короткий код: случайная строка Base62, длина 7 символов (настраивается через `SHORT_CODE_LENGTH`).
-
 ## Переменные окружения
 
+| Переменная | Описание |
+|------------|----------|
+| `APP_URL` | Базовый URL приложения |
+| `SHORT_URL_BASE` | База для коротких ссылок |
+| `DB_*` | PostgreSQL |
 
-| Переменная       | Описание                                            |
-| ---------------- | --------------------------------------------------- |
-| `APP_URL`        | Базовый URL приложения                              |
-| `SHORT_URL_BASE` | База для коротких ссылок (по умолчанию = `APP_URL`) |
-| `DB_`*           | PostgreSQL                                          |
-| `REDIS_*`        | Redis                                               |
-
-
-## Структура репозитория (v1.0)
+## Структура репозитория
 
 ```text
-app/Domain|Application|Infrastructure|Http/   # бизнес-логика
-database/migrations/                           # short_urls, clicks
+app/Domain|Application|Infrastructure|Http/
+database/migrations/ + seeders/
+resources/views/login.blade.php, dashboard.blade.php
 docker/ + docker-compose.yml + Makefile
-routes/api.php, routes/web.php
-tests/Feature/ShortUrl/, tests/Unit/
+routes/web.php
+tests/Feature/
 ```
-
-Простой фронтенд: `resources/views/dashboard.blade.php` (Blade + vanilla JS, без сборки). Без users/jobs/cache-миграций.
 
 ## Стек
 
 - PHP 8.4 (FPM), Laravel 13
-- PostgreSQL 17, Redis 7 (инфраструктура Docker)
+- PostgreSQL 17
 - Docker Compose, Makefile
 - PHPUnit, Laravel Pint
 
+## Лицензия
+
+MIT
