@@ -20,6 +20,8 @@ interface ShortUrlRepository
 
     public function recordClick(Click $click): void;
 
+    public function deleteForUser(string $id, int $userId): bool;
+
     /**
      * @return array{clicks: int, unique_visitors: int, last_click_at: ?string}
      */

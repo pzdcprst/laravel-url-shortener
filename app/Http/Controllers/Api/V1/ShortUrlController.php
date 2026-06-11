@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Application\ShortUrl\Commands\CreateShortUrlHandler;
 use App\Application\ShortUrl\Queries\GetShortUrlStatsHandler;
+use App\Application\ShortUrl\Commands\DeleteShortUrlHandler;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateShortUrlRequest;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +39,21 @@ class ShortUrlController extends Controller
             'clicks' => $stats->clicks,
             'unique_visitors' => $stats->uniqueVisitors,
             'last_click_at' => $stats->lastClickAt,
+        ]);
+    }
+
+    public function destroy(
+        string $id,
+        Request $request,
+        DeleteShortUrlHandler $handler,
+    ): JsonResponse {
+        $handler->handle(
+            $id,
+            $request->user()->id,
+        );
+
+        return response()->json([
+            'message' => 'Short URL deleted.',
         ]);
     }
 }
