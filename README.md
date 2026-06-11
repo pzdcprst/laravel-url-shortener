@@ -135,6 +135,19 @@ GET /api/v1/short-urls/{id}/stats
 
 Чужая ссылка → `404`.
 
+### Удаление ссылки
+
+```http
+DELETE /api/v1/short-urls/{id}
+```
+
+Ответ
+```json
+{
+  "message": "Short URL deleted successfully"
+}
+```
+
 ### Редирект (публичный)
 
 ```http
