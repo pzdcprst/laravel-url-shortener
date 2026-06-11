@@ -85,6 +85,14 @@ final class EloquentShortUrlRepository implements ShortUrlRepository
         ];
     }
 
+    public function deleteForUser(string $id, int $userId): bool
+    {
+    return ShortUrlModel::query()
+        ->where('id', $id)
+        ->where('user_id', $userId)
+        ->delete() > 0;
+    }
+
     private function toEntity(ShortUrlModel $model): ShortUrl
     {
         return new ShortUrl(

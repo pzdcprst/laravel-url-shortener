@@ -384,7 +384,7 @@
                 btn.className = 'btn-secondary';
                 btn.textContent = 'Статистика';
                 btn.addEventListener('click', () => selectLink(item));
-
+                
                 li.append(link, btn);
                 ul.appendChild(li);
             });

@@ -17,6 +17,11 @@ Route::post('/logout', [AuthController::class, 'logout'])
 Route::middleware('auth')->group(function () {
     Route::view('/', 'dashboard');
 
+    Route::delete(
+        '/short-urls/{id}',
+        [ShortUrlController::class, 'destroy']
+    );
+
     Route::prefix('api/v1')->group(function () {
         Route::post('short-urls', [ShortUrlController::class, 'store']);
         Route::get('short-urls/{id}/stats', [ShortUrlController::class, 'stats'])
